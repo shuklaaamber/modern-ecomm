@@ -1,0 +1,22 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost/ci
+      BETTER_AUTH_SECRET: ci-placeholder-secret-0000
+      PAYMENT_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      # Unit only: integration tests hit a real database and are run deliberately, not against CI secrets.
+      - run: npx vitest run tests/unit
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
