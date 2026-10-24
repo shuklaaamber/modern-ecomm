@@ -1,0 +1,6 @@
+# Automatic HTTPS (Let's Encrypt) for {$DOMAIN}. Caddy sets X-Forwarded-For itself and drops client-supplied values,
+# which the app's rate limiter relies on.
+{$DOMAIN} {
+	encode gzip zstd
+	reverse_proxy app:3000
+}

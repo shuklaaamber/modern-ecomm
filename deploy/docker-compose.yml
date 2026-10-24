@@ -1,0 +1,35 @@
+# Production stack for a single VM (e.g. Oracle Cloud Always Free). Run from the repo root:
+#   docker compose -f deploy/docker-compose.yml --env-file .env.production up -d --build
+services:
+  app:
+    build:
+      context: ..
+      args:
+        NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
+    env_file: ../.env.production
+    restart: unless-stopped
+    expose: ["3000"]
+
+  # One-shot: `docker compose ... run --rm migrate` applies drizzle/*.sql. Not started by `up`.
+  migrate:
+    build: { context: .., target: build }
+    env_file: ../.env.production
+    command: npx drizzle-kit migrate
+    profiles: ["tools"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
