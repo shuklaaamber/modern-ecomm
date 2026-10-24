@@ -7,6 +7,7 @@ import { orderEvents, orders, products, promoCodes, variants } from "@/db/schema
 import { requireAdmin } from "@/lib/auth";
 import { ADMIN_SETTABLE, assertTransition, type OrderStatus } from "@/lib/orders";
 import { cancelPendingOrder } from "@/lib/inventory";
+import { addVariant, setProductDetails, setPromoActive, setVariantPrice } from "@/lib/admin-catalog";
 import type { ActionResult } from "@/app/actions/cart";
 
 const fail = (e: unknown): ActionResult => ({ ok: false, error: e instanceof Error ? e.message : "Something went wrong." });
@@ -112,5 +113,77 @@ export async function createPromo(input: z.input<typeof promoSchema>): Promise<A
   } catch (e) {
     if ((e as { cause?: { code?: string } })?.cause?.code === "23505") return { ok: false, error: "That code already exists." };
     return fail(e instanceof z.ZodError ? new Error(e.issues[0]?.message) : e);
+  }
+}
+
+const rupees = z.number().finite().min(0).max(1_000_000);
+const paise = (r: number) => Math.round(r * 100);
+const zmsg = (e: unknown) => fail(e instanceof z.ZodError ? new Error(e.issues[0]?.message) : e);
+
+function refreshCatalog() {
+  revalidatePath("/admin/products");
+  revalidatePath("/products", "layout");
+  revalidatePath("/cart");
+  revalidateTag("products", "max");
+}
+
+export async function updateVariantPrice(variantId: number, price: number, compareAt: number | null): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const p = rupees.parse(price);
+    const c = compareAt == null ? null : rupees.parse(compareAt);
+    await setVariantPrice(variantId, paise(p), c ? paise(c) : null);
+    refreshCatalog();
+    return { ok: true, message: "Price updated" };
+  } catch (e) {
+    return zmsg(e);
+  }
+}
+
+const detailsSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(2000),
+  categoryId: z.number().int().positive(),
+});
+
+export async function updateProductDetails(productId: number, input: z.input<typeof detailsSchema>): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    await setProductDetails(productId, detailsSchema.parse(input));
+    refreshCatalog();
+    return { ok: true, message: "Product updated" };
+  } catch (e) {
+    return zmsg(e);
+  }
+}
+
+const variantSchema = z.object({
+  size: z.string().trim().min(1).max(30),
+  color: z.string().trim().min(1).max(30),
+  price: rupees,
+  compareAt: rupees.nullable(),
+  stock: z.number().int().min(0).max(100_000),
+});
+
+export async function addProductVariant(productId: number, input: z.input<typeof variantSchema>): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const d = variantSchema.parse(input);
+    await addVariant(productId, { size: d.size, color: d.color, priceCents: paise(d.price), compareAtCents: d.compareAt ? paise(d.compareAt) : null, stock: d.stock });
+    refreshCatalog();
+    return { ok: true, message: "Variant added" };
+  } catch (e) {
+    return zmsg(e);
+  }
+}
+
+export async function togglePromo(code: string, active: boolean): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    await setPromoActive(code, active);
+    revalidatePath("/admin/promos");
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
   }
 }

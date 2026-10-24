@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { adjustStock, createProduct, createPromo, setProductStatus, updateOrderStatus } from "@/app/actions/admin";
+import { addProductVariant, adjustStock, createProduct, createPromo, setProductStatus, togglePromo, updateOrderStatus, updateProductDetails, updateVariantPrice } from "@/app/actions/admin";
 import type { OrderStatus } from "@/lib/orders";
 import { btn, btnGhost, input, Notice } from "@/components/ui";
 
@@ -118,5 +118,109 @@ export function NewPromoForm() {
       <div className="self-end"><button className={btn} disabled={pending}>Create</button></div>
       <div aria-live="polite" className="sm:col-span-2">{msg && <Notice kind={msg.ok ? "success" : "error"}>{msg.t}</Notice>}</div>
     </form>
+  );
+}
+
+export function PriceEditor({ variantId, label, price, compareAt }: { variantId: number; label: string; price: number; compareAt: number | null }) {
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        const cmp = String(fd.get("compareAt") ?? "").trim();
+        start(async () => {
+          const r = await updateVariantPrice(variantId, Number(fd.get("price")), cmp ? Number(cmp) : null);
+          setMsg({ ok: r.ok, t: r.ok ? "Saved" : r.error });
+        });
+      }}
+    >
+      <label className="sr-only" htmlFor={`pr-${variantId}`}>Price in rupees for {label}</label>
+      <input id={`pr-${variantId}`} name="price" type="number" step="0.01" min="1" required defaultValue={price / 100} className={`${input} w-24`} />
+      <label className="sr-only" htmlFor={`cp-${variantId}`}>Original (compare-at) price for {label}, optional</label>
+      <input id={`cp-${variantId}`} name="compareAt" type="number" step="0.01" min="0" placeholder="was ₹" defaultValue={compareAt ? compareAt / 100 : ""} className={`${input} w-24`} />
+      <button className={btnGhost} disabled={pending}>Save</button>
+      {msg && <span role="status" className={`text-xs ${msg.ok ? "text-muted" : "text-danger"}`}>{msg.t}</span>}
+    </form>
+  );
+}
+
+export function EditProductForm({ product, categories }: { product: { id: number; name: string; description: string; categoryId: number }; categories: { id: number; name: string }[] }) {
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <details className="border-b border-line p-4">
+      <summary className="cursor-pointer text-sm font-medium">Edit details</summary>
+      <form
+        className="mt-3 grid gap-3 sm:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          start(async () => {
+            const r = await updateProductDetails(product.id, { name: String(fd.get("name")), categoryId: Number(fd.get("categoryId")), description: String(fd.get("description") ?? "") });
+            setMsg({ ok: r.ok, t: r.ok ? (r.message ?? "Saved") : r.error });
+          });
+        }}
+      >
+        <label className="text-sm">Name<input name="name" required defaultValue={product.name} className={`${input} mt-1`} /></label>
+        <label className="text-sm">Category
+          <select name="categoryId" defaultValue={product.categoryId} className={`${input} mt-1`}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        </label>
+        <label className="text-sm sm:col-span-2">Description<textarea name="description" rows={3} defaultValue={product.description} className={`${input} mt-1`} /></label>
+        <div className="sm:col-span-2"><button className={btn} disabled={pending}>{pending ? "Saving…" : "Save details"}</button></div>
+        <div aria-live="polite" className="sm:col-span-2">{msg && <Notice kind={msg.ok ? "success" : "error"}>{msg.t}</Notice>}</div>
+      </form>
+    </details>
+  );
+}
+
+export function AddVariantForm({ productId, defaultPrice }: { productId: number; defaultPrice: number }) {
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <details className="border-t border-line p-4">
+      <summary className="cursor-pointer text-sm font-medium">Add a size / colour</summary>
+      <form
+        className="mt-3 grid gap-3 sm:grid-cols-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          const cmp = String(fd.get("compareAt") ?? "").trim();
+          start(async () => {
+            const r = await addProductVariant(productId, {
+              size: String(fd.get("size")), color: String(fd.get("color")), price: Number(fd.get("price")),
+              compareAt: cmp ? Number(cmp) : null, stock: Number(fd.get("stock")),
+            });
+            setMsg({ ok: r.ok, t: r.ok ? (r.message ?? "Added") : r.error });
+            if (r.ok) form.reset();
+          });
+        }}
+      >
+        <label className="text-sm">Size<input name="size" required placeholder="M, 32, One size" className={`${input} mt-1`} /></label>
+        <label className="text-sm">Colour<input name="color" required className={`${input} mt-1`} /></label>
+        <label className="text-sm">Price (₹)<input name="price" type="number" step="0.01" min="1" required defaultValue={defaultPrice / 100} className={`${input} mt-1`} /></label>
+        <label className="text-sm">Was (₹)<input name="compareAt" type="number" step="0.01" min="0" className={`${input} mt-1`} /></label>
+        <label className="text-sm">Stock<input name="stock" type="number" min="0" defaultValue={10} required className={`${input} mt-1`} /></label>
+        <div className="sm:col-span-5"><button className={btn} disabled={pending}>{pending ? "Adding…" : "Add variant"}</button></div>
+        <div aria-live="polite" className="sm:col-span-5">{msg && <Notice kind={msg.ok ? "success" : "error"}>{msg.t}</Notice>}</div>
+      </form>
+    </details>
+  );
+}
+
+export function PromoToggle({ code, active }: { code: string; active: boolean }) {
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button className={btnGhost} disabled={pending} aria-label={`${active ? "Deactivate" : "Activate"} ${code}`}
+        onClick={() => start(async () => { const r = await togglePromo(code, !active); setErr(r.ok ? null : r.error); })}>
+        {active ? "Deactivate" : "Activate"}
+      </button>
+      {err && <span role="alert" className="text-xs text-danger">{err}</span>}
+    </span>
   );
 }

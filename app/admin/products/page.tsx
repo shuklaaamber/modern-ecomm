@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, products, variants } from "@/db/schema";
-import { ArchiveButton, NewProductForm, StockAdjuster } from "@/components/AdminControls";
+import { AddVariantForm, ArchiveButton, EditProductForm, NewProductForm, PriceEditor, StockAdjuster } from "@/components/AdminControls";
 
 export const metadata: Metadata = { title: "Admin: products", robots: { index: false } };
 
@@ -31,9 +31,11 @@ export default async function AdminProducts() {
               </div>
               <ArchiveButton productId={p.id} status={p.status} />
             </header>
+            <EditProductForm product={{ id: p.id, name: p.name, description: p.description, categoryId: p.categoryId }} categories={cats} />
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted">
-                <tr><th scope="col" className="p-3">Variant</th><th scope="col">On hand</th><th scope="col">Reserved</th><th scope="col">Adjust</th></tr>
+                <tr><th scope="col" className="p-3">Variant</th><th scope="col">On hand</th><th scope="col">Reserved</th><th scope="col">Adjust</th><th scope="col">Price (₹) / was</th></tr>
               </thead>
               <tbody>
                 {vs.map((v) => (
@@ -41,10 +43,13 @@ export default async function AdminProducts() {
                     <th scope="row" className="p-3 text-left font-normal">{v.label}</th>
                     <td>{v.onHand}</td><td>{v.reserved}</td>
                     <td className="py-2"><StockAdjuster variantId={v.id} label={`${p.name} ${v.label}`} /></td>
+                    <td className="py-2 pr-3"><PriceEditor variantId={v.id} label={`${p.name} ${v.label}`} price={v.priceCents} compareAt={v.compareAtCents} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
+            <AddVariantForm productId={p.id} defaultPrice={vs[0].priceCents} />
           </section>
         ))}
       </div>
