@@ -7,13 +7,12 @@ import { cartLines, carts, products, variants } from "@/db/schema";
 import { getOrCreateCartId, getCartView, mergeAnonymousCart } from "@/lib/cart";
 import { PromoError, resolvePromo } from "@/lib/promo";
 import { rateLimit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/client-ip";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
 const MAX_QTY = 20;
 const done = (message?: string): ActionResult => {
-  revalidatePath("/cart"); // never "/" layout: that would purge every cached page for all visitors
+  revalidatePath("/", "layout");
   return { ok: true, message };
 };
 
@@ -60,7 +59,7 @@ export async function removeLine(variantId: number): Promise<ActionResult> {
 }
 
 export async function applyPromo(code: string): Promise<ActionResult> {
-  const ip = clientIp(new Request("http://x", { headers: await headers() }));
+  const ip = ((await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "local");
   if (!(await rateLimit(`promo:${ip}`, 15, 60_000))) return { ok: false, error: "Too many attempts. Try again in a minute." };
   const cartId = await getOrCreateCartId();
   const view = await getCartView();

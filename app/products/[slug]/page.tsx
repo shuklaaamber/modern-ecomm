@@ -6,7 +6,7 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 import { categories, products, reviews, user, variants, wishlistItems } from "@/db/schema";
 import { getUser } from "@/lib/auth";
-import { listProductsCached } from "@/lib/catalog";
+import { listProducts } from "@/lib/catalog";
 import { AddToCart, type VariantOption } from "@/components/AddToCart";
 import { ReviewForm } from "@/components/ReviewForm";
 import { ProductCard } from "@/components/ProductCard";
@@ -48,7 +48,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       .orderBy(desc(reviews.createdAt))
       .limit(20),
     getUser(),
-    listProductsCached({ category: c.slug }),
+    listProducts({ category: c.slug }),
   ]);
 
   const options: VariantOption[] = vs.map((v) => ({

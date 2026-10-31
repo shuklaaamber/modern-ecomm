@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { categories } from "@/db/schema";
-import { listCategoriesCached, listProductsCached, type SortKey } from "@/lib/catalog";
+import { listProducts, type SortKey } from "@/lib/catalog";
 import { ProductCard } from "@/components/ProductCard";
 import { btn, input } from "@/components/ui";
 
@@ -31,8 +31,8 @@ export default async function Products({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const sort = (SORTS.find((s) => s.key === sp.sort)?.key ?? "newest") as SortKey;
   const [cats, { items, total, page, pages }] = await Promise.all([
-    listCategoriesCached(),
-    listProductsCached({ q: sp.q, category: sp.category, sort, page: Number(sp.page) || 1 }),
+    db.select().from(categories),
+    listProducts({ q: sp.q, category: sp.category, sort, page: Number(sp.page) || 1 }),
   ]);
 
   const href = (over: Record<string, string | undefined>) => {

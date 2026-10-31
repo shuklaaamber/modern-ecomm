@@ -1,5 +1,4 @@
 "use client";
-import { refreshNav } from "@/lib/nav-events";
 import { useState, useTransition } from "react";
 import { applyPromo, removeLine, removePromo, updateQty } from "@/app/actions/cart";
 import { btnGhost, input, Notice } from "@/components/ui";
@@ -14,14 +13,14 @@ export function QtyControls({ variantId, qty, max, name }: { variantId: number; 
         <span className="sr-only">Quantity for {name}</span>
         <select
           value={Math.min(qty, opts)} disabled={pending}
-          onChange={(e) => start(async () => { const r = await updateQty(variantId, Number(e.target.value)); refreshNav(); setErr(r.ok ? null : r.error); })}
+          onChange={(e) => start(async () => { const r = await updateQty(variantId, Number(e.target.value)); setErr(r.ok ? null : r.error); })}
           className="rounded-lg border border-line bg-card px-2 py-1.5"
         >
           {Array.from({ length: opts }, (_, i) => i + 1).map((n) => <option key={n}>{n}</option>)}
         </select>
       </label>
       <button type="button" className="text-muted underline hover:text-fg" disabled={pending} aria-label={`Remove ${name}`}
-        onClick={() => start(async () => { await removeLine(variantId); refreshNav(); })}>
+        onClick={() => start(async () => { await removeLine(variantId); })}>
         Remove
       </button>
       {err && <span role="alert" className="text-danger">{err}</span>}

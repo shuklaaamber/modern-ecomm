@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { categories } from "@/db/schema";
-import { listCategoriesCached, listProductsCached } from "@/lib/catalog";
+import { listProducts } from "@/lib/catalog";
 import { ProductCard } from "@/components/ProductCard";
 import { btn } from "@/components/ui";
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const [cats, featured] = await Promise.all([listCategoriesCached(), listProductsCached({ sort: "rating" })]);
+  const [cats, featured] = await Promise.all([db.select().from(categories), listProducts({ sort: "rating" })]);
   return (
     <div className="space-y-14">
       <section className="rounded-card bg-accent px-6 py-14 text-accent-fg sm:px-12">
