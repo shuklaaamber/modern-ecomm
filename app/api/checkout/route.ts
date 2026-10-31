@@ -10,6 +10,7 @@ import { OutOfStockError } from "@/lib/inventory";
 import { PromoError } from "@/lib/promo";
 import { rateLimit } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
+import { isBusyError } from "@/lib/db";
 import { log } from "@/lib/logger";
 
 const body = z.object({
@@ -55,6 +56,13 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof OutOfStockError) return NextResponse.json({ error: e.message, code: "out_of_stock" }, { status: 409 });
     if (e instanceof PromoError) return NextResponse.json({ error: e.message, code: "promo" }, { status: 422 });
+    if (isBusyError(e)) {
+      log.warn("checkout busy (lock/statement timeout)", { err: e });
+      return NextResponse.json(
+        { error: "We're very busy right now. Please try again in a few seconds.", code: "busy" },
+        { status: 503, headers: { "Retry-After": "3" } },
+      );
+    }
     log.error("checkout failed", { err: e });
     // Plain Errors from startCheckout are user-facing; driver errors (wrapped, with a cause) can contain SQL.
     const safe = e instanceof Error && !e.cause ? e.message : "Checkout failed. Please try again.";

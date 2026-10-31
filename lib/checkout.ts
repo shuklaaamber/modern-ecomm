@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, setTxTimeouts } from "@/lib/db";
 import {
   cartLines, carts, orderEvents, orderLines, orders, paymentEvents, products, reservations, variants,
 } from "@/db/schema";
@@ -69,6 +69,7 @@ export async function startCheckout(input: CheckoutInput): Promise<CheckoutResul
   let created: typeof orders.$inferSelect;
   try {
     created = await db.transaction(async (tx) => {
+      await setTxTimeouts(tx);
       const rows = await tx
         .select({ v: variants, p: products })
         .from(variants)
@@ -167,6 +168,7 @@ export async function markOrderPaid(input: {
   let receipt: Parameters<typeof sendReceipt>[0] | null = null;
 
   const result = await db.transaction(async (tx): Promise<PaidResult> => {
+    await setTxTimeouts(tx);
     if (input.eventId) {
       const ins = await tx.insert(paymentEvents).values({ id: input.eventId }).onConflictDoNothing().returning();
       if (ins.length === 0) return { outcome: "duplicate_event" };
