@@ -1,4 +1,5 @@
 "use client";
+import { refreshNav } from "@/lib/nav-events";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -10,6 +11,7 @@ export function SignOutButton() {
       className="hover:underline"
       onClick={async () => {
         await authClient.signOut();
+        refreshNav();
         router.push("/");
         router.refresh();
       }}

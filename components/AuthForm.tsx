@@ -1,4 +1,5 @@
 "use client";
+import { refreshNav } from "@/lib/nav-events";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,6 +31,7 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next: st
     // Wait for the cart merge and a refresh BEFORE navigating, so protected pages see the new session.
     await mergeCartAfterSignIn();
     router.refresh();
+    refreshNav();
     router.push(next);
   }
 

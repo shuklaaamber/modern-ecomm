@@ -1,4 +1,5 @@
 "use client";
+import { refreshNav } from "@/lib/nav-events";
 import { useState, useTransition } from "react";
 import { addToCart } from "@/app/actions/cart";
 import { toggleWishlist } from "@/app/actions/engage";
@@ -91,6 +92,7 @@ export function AddToCart({ variants, productId, initiallySaved }: { variants: V
           onClick={() =>
             start(async () => {
               const r = await addToCart(selected!.id, qty);
+              refreshNav();
               setMsg(r.ok ? { kind: "success", text: r.message ?? "Added to cart" } : { kind: "error", text: r.error });
             })
           }

@@ -1,5 +1,7 @@
+import { unstable_cache } from "next/cache";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { categories } from "@/db/schema";
 
 export const PAGE_SIZE = 8;
 
@@ -54,3 +56,20 @@ export async function listProducts(opts: { q?: string; category?: string; sort?:
   const total = Number(count.rows[0]?.n ?? 0);
   return { items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
+
+/**
+ * Cached reads for pages. Tag "products" is revalidated by admin edits; the short TTL bounds how stale
+ * availability can be (checkout re-checks stock, so this is display-only). Uncached listProducts stays
+ * for tests and anything needing fresh data.
+ */
+export const listProductsCached = unstable_cache(
+  (opts: { q?: string; category?: string; sort?: SortKey; page?: number }) => listProducts(opts),
+  ["list-products"],
+  { tags: ["products"], revalidate: 30 },
+);
+
+export const listCategoriesCached = unstable_cache(
+  () => db.select().from(categories),
+  ["list-categories"],
+  { tags: ["products"], revalidate: 300 },
+);
